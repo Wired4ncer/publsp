@@ -358,7 +358,18 @@ class OrderHandler:
     async def verify_order_and_connection(
             self,
             order: Order) -> Union[OrderResponse, None]:
-        ad = self.ad_handler.active_ads.ads[order.d]
+        # the order may reference an ad id we don't have (unknown/typo), or one
+        # that was just inactivated; guard the lookup so a stray request can't
+        # crash the fire-and-forget order task with a KeyError/AttributeError
+        active_ads = getattr(self.ad_handler, 'active_ads', None)
+        ad = active_ads.ads.get(order.d) if active_ads else None
+        if ad is None:
+            logger.error(
+                f"order references unknown or inactive ad id '{order.d}', cancelling")
+            return OrderErrorResponse(
+                code=OrderErrorCode.invalid_params,
+                error_message="unknown or no longer active offer id",
+            )
         # validate the order request first
         checked_order = order.validate_order(ad=ad)
         if not checked_order.is_valid:
