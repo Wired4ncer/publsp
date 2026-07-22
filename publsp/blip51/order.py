@@ -139,14 +139,14 @@ class OrderResponse(BaseModel, NostrTagsMixin):
     order response
     https://github.com/lightning/blips/blob/master/blip-0051.md#2-lsps1create_order
     """
-    order_id: str = Field(default=str(uuid.uuid4()))
+    order_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     lsp_balance_sat: int
     client_balance_sat: int
     required_channel_confirmations: int
     funding_confirms_within_blocks: int
     channel_expiry_blocks: int
     token: str = Field(default='')
-    created_at: datetime = Field(default=datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     announce_channel: bool
     order_state: OrderState
     payment: Payment
