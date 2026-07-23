@@ -12,7 +12,7 @@ from publsp.blip51.order import (
     OrderResponse,
     ValidatedOrderResponse,
 )
-from publsp.blip51.utils import calculate_lease_cost, calculate_apr
+from publsp.blip51.utils import calculate_lease_cost, calculate_apr, costs_match
 from publsp.ln.invdecoder import lndecode
 from publsp.ln.requesthandlers import ChannelOpenResponse
 from publsp.marketplace.base import AdEventData, MarketplaceAgent
@@ -177,7 +177,9 @@ class OrderResponseHandler:
             logger.error(err)
             return ValidatedOrderResponse(is_valid=False, error_message=err)
         # 3.
-        if order_resp.payment.bolt11.order_total_sat != invoice_order_total_sat:
+        if not costs_match(
+                order_resp.payment.bolt11.order_total_sat,
+                invoice_order_total_sat):
             err = (
                 'order response order total of '
                 f'{order_resp.payment.bolt11.order_total_sat} '
@@ -186,7 +188,9 @@ class OrderResponseHandler:
             logger.error(err)
             return ValidatedOrderResponse(is_valid=False, error_message=err)
         # 4.
-        if expected_total_fee != order_resp.payment.bolt11.fee_total_sat:
+        if not costs_match(
+                expected_total_fee,
+                order_resp.payment.bolt11.fee_total_sat):
             err = (
                 f'expected a fee total of {expected_total_fee} '
                 f'but got {order_resp.payment.bolt11.fee_total_sat} '
@@ -194,18 +198,20 @@ class OrderResponseHandler:
             logger.error(err)
             return ValidatedOrderResponse(is_valid=False, error_message=err)
         # 5.
-        if expected_total_cost != order_resp.payment.bolt11.order_total_sat:
+        if not costs_match(
+                expected_total_cost,
+                order_resp.payment.bolt11.order_total_sat):
             err = (
                 f'expected a total cost of {expected_total_cost} '
-                'but got {order_resp.payment.bolt11.total_cost_sat} in the '
+                f'but got {order_resp.payment.bolt11.order_total_sat} in the '
                 'order response')
             logger.error(err)
             return ValidatedOrderResponse(is_valid=False, error_message=err)
         # 6.
-        if expected_total_cost != invoice_order_total_sat:
+        if not costs_match(expected_total_cost, invoice_order_total_sat):
             err = (
                 f'expected a total cost of {expected_total_cost} '
-                'but got {order_resp.payment.bolt11.total_cost_sat} in the '
+                f'but got {invoice_order_total_sat} in the '
                 'bolt11 invoice')
             logger.error(err)
             return ValidatedOrderResponse(is_valid=False, error_message=err)

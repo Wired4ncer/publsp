@@ -1,5 +1,19 @@
 YEARLY_MINED_BLOCKS = int(24*60/10*365)
 
+# The LSP and the customer independently recompute the lease cost, so their
+# results can differ by a satoshi at the rounding boundary (or if one side read
+# a marginally stale ad). Allow a small tolerance so an off-by-one doesn't abort
+# an otherwise-valid order.
+LEASE_COST_TOLERANCE_SAT = 1
+
+
+def costs_match(
+        expected: int,
+        actual: int,
+        tolerance: int = LEASE_COST_TOLERANCE_SAT) -> bool:
+    """True if two independently-computed sat amounts agree within tolerance."""
+    return abs(expected - actual) <= tolerance
+
 
 def calculate_lease_cost(
         fixed_cost: int,
