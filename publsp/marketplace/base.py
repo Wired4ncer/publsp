@@ -11,6 +11,7 @@ from nostr_sdk import (
 from typing import List, Dict, Tuple, Union
 
 from publsp.blip51.info import Ad
+from publsp.ln.signmessage import verify_lnd_signature
 from publsp.nostr.kinds import PublspKind
 from publsp.nostr.client import NostrClient
 
@@ -38,6 +39,35 @@ class AdEventData:
     def get_event_id(self, ad_id: str) -> str:
         return self.ad_events[ad_id].id().to_hex()
 
+    def verify_lsp_sig(self, ad_id: str) -> Union[bool, None]:
+        """
+        Check the ad's node-identity signature: does the advertised `lsp_pubkey`
+        (the LN node key that will receive payment) actually sign the Nostr
+        pubkey that published this ad? A valid signature binds the two
+        identities so the self-reported `node_stats` can be trusted; an invalid
+        one is a likely impersonation.
+
+        Returns None when the ad carries no signature (nothing to verify), else
+        True/False. This is advisory only — it never filters ads out.
+        """
+        ad = self.ads[ad_id]
+        if not ad.lsp_sig or not ad.lsp_pubkey:
+            return None
+        nostr_pubkey = self.get_nostr_pubkey(ad_id=ad_id)
+        return verify_lnd_signature(nostr_pubkey, ad.lsp_sig, ad.lsp_pubkey)
+
+    def _format_sig_status(self, ad_id: str) -> str:
+        ad = self.ads[ad_id]
+        status = self.verify_lsp_sig(ad_id)
+        if status is True:
+            return f'{ad.lsp_sig} [VERIFIED: lsp_pubkey signed this Nostr key]'
+        if status is False:
+            return (
+                f'{ad.lsp_sig} [!! INVALID: does not match lsp_pubkey — '
+                'possible impersonation, treat node stats as unverified]'
+            )
+        return 'none [unsigned — no cryptographic link between this Nostr key and lsp_pubkey]'
+
     def __str__(self):
         indent = 38
         formatted_output = str()
@@ -50,7 +80,7 @@ class AdEventData:
                 f'\n{"d ID": <{indent}}{ad_id}\n'
                 f'{"Value proposition": <{indent}}{value_prop}\n'
                 f'{"Nostr pubkey": <{indent}}{nostr_pubkey}\n'
-                f'{"Node signature of Nostr pubkey": <{indent}}{ad.lsp_sig}\n'
+                f'{"Node signature of Nostr pubkey": <{indent}}{self._format_sig_status(ad_id)}\n'
                 f'{"LSP pubkey": <{indent}}{ad.lsp_pubkey}\n'
                 f'{"LSP alias": <{indent}}{node_info.get("alias")}\n'
                 f'{"LSP total capacity (sats)": <{indent}}{node_info.get("total_capacity")}\n'

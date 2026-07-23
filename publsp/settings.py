@@ -462,7 +462,7 @@ class LspSettings(
     version: str = Field(default=VERSION)
     daemon: bool = Field(default=False)
     lease_history_file_path: str = Field(default='output/lease-history.json')
-    include_node_sig: bool = Field(default=False)
+    include_node_sig: bool = Field(default=True)
 
     @model_validator(mode='after')
     def ensure_output_directory_exists(self):
